@@ -60,7 +60,6 @@ class EasyApplyBot:
                  phone_number,
                  # profile_path,
                  salary,
-                 rate,
                  uploads={},
                  filename='output.csv',
                  blacklist=[],
@@ -72,13 +71,14 @@ class EasyApplyBot:
 
         self.uploads = uploads
         self.salary = salary
-        self.rate = rate
         # self.profile_path = profile_path
         past_ids: list | None = self.get_appliedIDs(filename)
         self.appliedJobIDs: list = past_ids if past_ids != None else []
         self.filename: str = filename
         self.options = self.browser_options()
-        self.browser = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=self.options)
+        chrome_driver_path = 'chromedriver' 
+        self.service = ChromeService(executable_path=chrome_driver_path)
+        self.browser = webdriver.Chrome( service=self.service , options=self.options)
         self.wait = WebDriverWait(self.browser, 30)
         self.blacklist = blacklist
         self.blackListTitles = blackListTitles
@@ -167,7 +167,7 @@ class EasyApplyBot:
             pw_field.send_keys(password)
             time.sleep(2)
             login_button.click()
-            time.sleep(15)
+            time.sleep(3)
             # if self.is_present(self.locator["2fa_oneClick"]):
             #     oneclick_auth = self.browser.find_element(by='id', value='reset-password-submit-button')
             #     if oneclick_auth is not None:
@@ -463,22 +463,7 @@ class EasyApplyBot:
                         submitted = True
                         break
                     elif len(elements) > 0:
-                        while len(elements) > 0:
-                            log.info("Please answer the questions, waiting 5 seconds...")
-                            time.sleep(5)
-                            elements = self.get_elements("error")
-                            if "application was sent" in self.browser.page_source:
-                                log.info("Application Submitted")
-                                submitted = True
-                                break
-                            elif is_present(self.locator["easy_apply_button"]):
-                                log.info("Skipping application")
-                                submitted = False
-                                break
-                        continue
-                        #add explicit wait
-                    # for element in elements:
-                    #self.process_questions()
+                        self.process_questions()
                     else:
                         log.info("Application not submitted")
                         time.sleep(2)
@@ -558,16 +543,28 @@ class EasyApplyBot:
 
     def ans_question(self, question): #refactor this to an ans.yaml file
         answer = None
+        print(question)
+        #after "required" line, add the possible answers
         if "how many" in question:
+            print("ha?")
+            answer = random.randint(3, 12)
+        elif "wie viele" in question:
+            print("ha?")
             answer = random.randint(3, 12)
         elif "experience" in question:
             answer = random.randint(3, 12)
         elif "sponsor" in question:
             answer = "No"
+        elif "country of residence" in question:
+            answer = "Austria"
+        elif "notice" in question:
+            answer = "30"  
         elif 'do you ' in question:
             answer = "Yes"
         elif "have you " in question:
             answer = "Yes"
+        elif "Wie viele" in question:
+            answer = random.randint(3, 5)
         elif "US citizen" in question:
             answer = "Yes"
         elif "are you " in question:
@@ -591,15 +588,11 @@ class EasyApplyBot:
         elif "are you legally" in question:
             answer = "Yes"
         else:
-            log.info("Not able to answer question automatically. Please provide answer")
-            #open file and document unanswerable questions, appending to it
-            answer = "user provided"
-            time.sleep(15)
-            self.answers[question] = answer
-            # df = pd.DataFrame(self.answers, index=[0])
-            # df.to_csv(self.qa_file, encoding="utf-8")
-        log.info("Answering question: " + question + " with answer: " + answer)
-        self.answers[question] = answer
+            log.info("Question not recognized")
+            answerz = question.split("required")[1].split("\n")
+            answer = random.choice(answerz)
+        log.info("Answering question: " + question + " with answer: " + str(answer))
+        self.answers[question] = str(answer)
         df = pd.DataFrame(self.answers, index=[0])
         df.to_csv(self.qa_file, encoding="utf-8")
         log.debug(f"{question} : {answer}")
@@ -680,7 +673,6 @@ if __name__ == '__main__':
                        parameters['password'],
                        parameters['phone_number'],
                        parameters['salary'],
-                       parameters['rate'],
                        uploads=uploads,
                        filename=output_filename,
                        blacklist=blacklist,
